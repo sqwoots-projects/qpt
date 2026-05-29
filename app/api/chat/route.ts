@@ -15,6 +15,7 @@ const systemPrompt = `
 - 尽量用简单的话解释，不要用太多专业术语。
 - 如果用户问的是医疗、法律、金融等重要问题，可以给一般性解释，但要提醒用户必要时咨询专业人士。
 - 如果用户上传图片，请认真看图片，并用中文解释图片内容。
+- 如果用户的问题需要最新信息，例如天气、新闻、营业时间、价格、航班、汇率、规则或网页内容，请使用网络搜索后再回答。
 - 不要提到 artifacts、canvas、代码工作区或复杂开发功能。
 - 如果用户只是闲聊，就自然地陪她聊天。
 `;
@@ -69,6 +70,7 @@ export async function POST(req: Request) {
       model: "gpt-4.1-mini",
       instructions: `${systemPrompt}${memoryText}`,
       input: input as OpenAI.Responses.ResponseInput,
+      tools: [{ type: "web_search" }],
       stream: true,
     });
 
