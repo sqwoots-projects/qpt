@@ -202,6 +202,40 @@ export default function Home() {
     );
   }
 
+  async function autoSaveMemories(finalMessages: Message[]) {
+    try {
+      const response = await fetch("/api/memory", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          messages: finalMessages,
+          existingMemories: memories,
+        }),
+      });
+
+      if (!response.ok) return;
+
+      const data = (await response.json()) as { memories?: string[] };
+      const suggestedMemories = data.memories ?? [];
+      if (suggestedMemories.length === 0) return;
+
+      setMemories((previous) => {
+        const existingSet = new Set(previous.map((memory) => memory.trim()));
+        const newMemories = suggestedMemories
+          .map((memory) => memory.trim())
+          .filter((memory) => memory && !existingSet.has(memory));
+
+        if (newMemories.length === 0) return previous;
+
+        return [...newMemories, ...previous].slice(0, 50);
+      });
+    } catch (error) {
+      console.error("Failed to auto-save memories:", error);
+    }
+  }
+
   async function sendMessage() {
     const text = input.trim();
     if (!text || isLoading || !activeConversation) return;
@@ -238,6 +272,13 @@ export default function Home() {
 
         assistantText += decoder.decode(value, { stream: true });
         updateActiveConversation([
+          ...nextMessages,
+          { role: "assistant", content: assistantText },
+        ]);
+      }
+
+      if (assistantText.trim()) {
+        await autoSaveMemories([
           ...nextMessages,
           { role: "assistant", content: assistantText },
         ]);
@@ -412,7 +453,7 @@ export default function Home() {
 
             <div className="border-b border-zinc-800 p-3">
               <p className="mb-3 text-sm leading-relaxed text-zinc-400">
-                这里保存 QPT 需要长期记住的事情。比如：妈妈喜欢简单解释、常用中文、喜欢旅行。
+                QPT 会自动保存长期有用的记忆。这里主要用于查看、补充或删除记忆。
               </p>
               <div className="flex gap-2">
                 <input
