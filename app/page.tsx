@@ -53,6 +53,7 @@ export default function Home() {
   const [showMemory, setShowMemory] = useState(false);
   const [memories, setMemories] = useState<string[]>([]);
   const [newMemory, setNewMemory] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
 
   const activeConversation = useMemo(() => {
     return conversations.find(
@@ -61,6 +62,20 @@ export default function Home() {
   }, [activeConversationId, conversations]);
 
   const messages = activeConversation?.messages ?? [welcomeMessage];
+
+  const filteredConversations = useMemo(() => {
+    const keyword = historySearch.trim().toLowerCase();
+    if (!keyword) return conversations;
+
+    return conversations.filter((conversation) => {
+      const titleMatch = conversation.title.toLowerCase().includes(keyword);
+      const messageMatch = conversation.messages.some((message) =>
+        message.content.toLowerCase().includes(keyword),
+      );
+
+      return titleMatch || messageMatch;
+    });
+  }, [conversations, historySearch]);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -142,6 +157,7 @@ export default function Home() {
     setConversations((previous) => [newConversation, ...previous]);
     setActiveConversationId(newConversation.id);
     setInput("");
+    setHistorySearch("");
     setShowHistory(false);
   }
 
@@ -324,17 +340,30 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="border-b border-zinc-800 p-3">
+            <div className="space-y-3 border-b border-zinc-800 p-3">
               <button
                 onClick={startNewChat}
                 className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black active:bg-zinc-200"
               >
                 + 新对话
               </button>
+
+              <input
+                value={historySearch}
+                onChange={(event) => setHistorySearch(event.target.value)}
+                placeholder="搜索历史记录…"
+                className="w-full rounded-xl bg-zinc-900 px-3 py-3 text-sm outline-none placeholder:text-zinc-500"
+              />
             </div>
 
             <div className="flex-1 overflow-y-auto p-2">
-              {conversations.map((conversation) => (
+              {filteredConversations.length === 0 ? (
+                <p className="mt-6 text-center text-sm text-zinc-500">
+                  没有找到相关对话。
+                </p>
+              ) : null}
+
+              {filteredConversations.map((conversation) => (
                 <div
                   key={conversation.id}
                   className={
