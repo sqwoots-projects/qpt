@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 type Message = {
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string;
 };
 
 type Conversation = {
@@ -44,6 +45,42 @@ function getConversationTitle(messages: Message[]) {
   return title.length > 18 ? `${title.slice(0, 18)}…` : title;
 }
 
+function resizeImageToDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onload = () => {
+      const image = new Image();
+
+      image.onload = () => {
+        const maxSize = 1280;
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const width = Math.round(image.width * scale);
+        const height = Math.round(image.height * scale);
+
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+          reject(new Error("Could not resize image"));
+          return;
+        }
+
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.78));
+      };
+
+      image.onerror = () => reject(new Error("Could not load image"));
+      image.src = String(reader.result);
+    };
+
+    reader.onerror = () => reject(new Error("Could not read image"));
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string>("");
@@ -54,6 +91,7 @@ export default function Home() {
   const [memories, setMemories] = useState<string[]>([]);
   const [newMemory, setNewMemory] = useState("");
   const [historySearch, setHistorySearch] = useState("");
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
 
   const activeConversation = useMemo(() => {
     return conversations.find(
@@ -202,6 +240,23 @@ export default function Home() {
     );
   }
 
+  async function handleImageChange(file: File | undefined) {
+    if (!file || isLoading) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("请选择图片文件。");
+      return;
+    }
+
+    try {
+      const imageUrl = await resizeImageToDataUrl(file);
+      setSelectedImageUrl(imageUrl);
+    } catch (error) {
+      console.error(error);
+      alert("图片处理失败，请换一张图片试试。");
+    }
+  }
+
   async function autoSaveMemories(finalMessages: Message[]) {
     try {
       const response = await fetch("/api/memory", {
@@ -238,15 +293,19 @@ export default function Home() {
 
   async function sendMessage() {
     const text = input.trim();
-    if (!text || isLoading || !activeConversation) return;
+    if ((!text && !selectedImageUrl) || isLoading || !activeConversation) return;
 
-    const nextMessages: Message[] = [
-      ...activeConversation.messages,
-      { role: "user", content: text },
-    ];
+    const userMessage: Message = {
+      role: "user",
+      content: text || "请帮我看看这张图片。",
+      imageUrl: selectedImageUrl ?? undefined,
+    };
+
+    const nextMessages: Message[] = [...activeConversation.messages, userMessage];
 
     updateActiveConversation([...nextMessages, { role: "assistant", content: "" }]);
     setInput("");
+    setSelectedImageUrl(null);
     setIsLoading(true);
 
     try {
@@ -333,6 +392,13 @@ export default function Home() {
                   : "mr-auto max-w-[85%] whitespace-pre-wrap rounded-2xl bg-zinc-900 px-4 py-3 text-base leading-relaxed"
               }
             >
+              {message.imageUrl ? (
+                <img
+                  src={message.imageUrl}
+                  alt="上传的图片"
+                  className="mb-3 max-h-64 w-full rounded-xl object-cover"
+                />
+              ) : null}
               {message.content || (isLoading ? "正在回复…" : "")}
               {isLoading && index === messages.length - 1 ? (
                 <span className="ml-1 animate-pulse">▌</span>
@@ -343,28 +409,59 @@ export default function Home() {
       </section>
 
       <footer className="shrink-0 border-t border-zinc-800 bg-black px-3 pb-5 pt-3">
-        <div className="mx-auto flex max-w-xl items-end gap-2 rounded-2xl bg-zinc-900 p-2">
-          <textarea
-            placeholder="输入你的问题…"
-            className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-3 py-2 text-base outline-none placeholder:text-zinc-500"
-            rows={1}
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
-                event.preventDefault();
-                sendMessage();
-              }
-            }}
-          />
+        <div className="mx-auto max-w-xl rounded-2xl bg-zinc-900 p-2">
+          {selectedImageUrl ? (
+            <div className="mb-2 flex items-start gap-2 rounded-xl bg-zinc-800 p-2">
+              <img
+                src={selectedImageUrl}
+                alt="准备发送的图片"
+                className="h-16 w-16 rounded-lg object-cover"
+              />
+              <button
+                onClick={() => setSelectedImageUrl(null)}
+                className="rounded-lg px-3 py-2 text-sm text-zinc-300 active:bg-zinc-700"
+              >
+                移除图片
+              </button>
+            </div>
+          ) : null}
 
-          <button
-            onClick={sendMessage}
-            disabled={isLoading || !input.trim()}
-            className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
-          >
-            发送
-          </button>
+          <div className="flex items-end gap-2">
+            <label className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-lg active:bg-zinc-700">
+              📷
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => {
+                  handleImageChange(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+            </label>
+
+            <textarea
+              placeholder={selectedImageUrl ? "想问这张图片什么？" : "输入你的问题…"}
+              className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-3 py-2 text-base outline-none placeholder:text-zinc-500"
+              rows={1}
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  sendMessage();
+                }
+              }}
+            />
+
+            <button
+              onClick={sendMessage}
+              disabled={isLoading || (!input.trim() && !selectedImageUrl)}
+              className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+            >
+              发送
+            </button>
+          </div>
         </div>
       </footer>
 
