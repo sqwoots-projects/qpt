@@ -1,29 +1,150 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type Message = {
   role: "user" | "assistant";
   content: string;
 };
 
+type Conversation = {
+  id: string;
+  title: string;
+  messages: Message[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+const STORAGE_KEY = "qpt_conversations";
+
+const welcomeMessage: Message = {
+  role: "assistant",
+  content: "你好，我是 QPT。有什么我可以帮你的吗？",
+};
+
+function createNewConversation(): Conversation {
+  const now = new Date().toISOString();
+
+  return {
+    id: crypto.randomUUID(),
+    title: "新对话",
+    messages: [welcomeMessage],
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function getConversationTitle(messages: Message[]) {
+  const firstUserMessage = messages.find((message) => message.role === "user");
+  if (!firstUserMessage) return "新对话";
+
+  const title = firstUserMessage.content.trim().replace(/\s+/g, " ");
+  return title.length > 18 ? `${title.slice(0, 18)}…` : title;
+}
+
 export default function Home() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: "assistant", content: "你好，我是 QPT。有什么我可以帮你的吗？" },
-  ]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [activeConversationId, setActiveConversationId] = useState<string>("");
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  const activeConversation = useMemo(() => {
+    return conversations.find(
+      (conversation) => conversation.id === activeConversationId,
+    );
+  }, [activeConversationId, conversations]);
+
+  const messages = activeConversation?.messages ?? [welcomeMessage];
+
+  useEffect(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as Conversation[];
+        if (parsed.length > 0) {
+          setConversations(parsed);
+          setActiveConversationId(parsed[0].id);
+          return;
+        }
+      } catch (error) {
+        console.error("Failed to load conversations:", error);
+      }
+    }
+
+    const firstConversation = createNewConversation();
+    setConversations([firstConversation]);
+    setActiveConversationId(firstConversation.id);
+  }, []);
+
+  useEffect(() => {
+    if (conversations.length === 0) return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
+  }, [conversations]);
+
+  function updateActiveConversation(nextMessages: Message[]) {
+    setConversations((previous) =>
+      previous.map((conversation) => {
+        if (conversation.id !== activeConversationId) return conversation;
+
+        return {
+          ...conversation,
+          title: getConversationTitle(nextMessages),
+          messages: nextMessages,
+          updatedAt: new Date().toISOString(),
+        };
+      }),
+    );
+  }
+
+  function startNewChat() {
+    if (isLoading) return;
+
+    const newConversation = createNewConversation();
+    setConversations((previous) => [newConversation, ...previous]);
+    setActiveConversationId(newConversation.id);
+    setInput("");
+    setShowHistory(false);
+  }
+
+  function openConversation(id: string) {
+    if (isLoading) return;
+
+    setActiveConversationId(id);
+    setShowHistory(false);
+  }
+
+  function deleteConversation(id: string) {
+    if (isLoading) return;
+
+    setConversations((previous) => {
+      const remaining = previous.filter((conversation) => conversation.id !== id);
+
+      if (remaining.length === 0) {
+        const newConversation = createNewConversation();
+        setActiveConversationId(newConversation.id);
+        return [newConversation];
+      }
+
+      if (id === activeConversationId) {
+        setActiveConversationId(remaining[0].id);
+      }
+
+      return remaining;
+    });
+  }
 
   async function sendMessage() {
     const text = input.trim();
-    if (!text || isLoading) return;
+    if (!text || isLoading || !activeConversation) return;
 
     const nextMessages: Message[] = [
-      ...messages,
+      ...activeConversation.messages,
       { role: "user", content: text },
     ];
 
-    setMessages([...nextMessages, { role: "assistant", content: "" }]);
+    updateActiveConversation([...nextMessages, { role: "assistant", content: "" }]);
     setInput("");
     setIsLoading(true);
 
@@ -49,15 +170,14 @@ export default function Home() {
         if (done) break;
 
         assistantText += decoder.decode(value, { stream: true });
-
-        setMessages([
+        updateActiveConversation([
           ...nextMessages,
           { role: "assistant", content: assistantText },
         ]);
       }
     } catch (error) {
       console.error(error);
-      setMessages([
+      updateActiveConversation([
         ...nextMessages,
         { role: "assistant", content: "抱歉，QPT 刚刚出了点问题。请再试一次。" },
       ]);
@@ -67,9 +187,23 @@ export default function Home() {
   }
 
   return (
-    <main className="flex h-dvh flex-col bg-black text-white">
-      <header className="flex h-14 shrink-0 items-center justify-center border-b border-zinc-800 px-4">
+    <main className="relative flex h-dvh flex-col bg-black text-white">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-800 px-4">
+        <button
+          onClick={() => setShowHistory(true)}
+          className="rounded-lg px-3 py-2 text-sm text-zinc-300 active:bg-zinc-800"
+        >
+          历史
+        </button>
+
         <h1 className="text-lg font-semibold">QPT</h1>
+
+        <button
+          onClick={startNewChat}
+          className="rounded-lg px-3 py-2 text-sm text-zinc-300 active:bg-zinc-800"
+        >
+          新对话
+        </button>
       </header>
 
       <section className="flex-1 overflow-y-auto px-4 py-5">
@@ -79,8 +213,8 @@ export default function Home() {
               key={index}
               className={
                 message.role === "user"
-                  ? "ml-auto max-w-[85%] rounded-2xl bg-blue-600 px-4 py-3 text-base leading-relaxed"
-                  : "mr-auto max-w-[85%] rounded-2xl bg-zinc-900 px-4 py-3 text-base leading-relaxed"
+                  ? "ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl bg-blue-600 px-4 py-3 text-base leading-relaxed"
+                  : "mr-auto max-w-[85%] whitespace-pre-wrap rounded-2xl bg-zinc-900 px-4 py-3 text-base leading-relaxed"
               }
             >
               {message.content || (isLoading ? "正在回复…" : "")}
@@ -99,10 +233,10 @@ export default function Home() {
             className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-3 py-2 text-base outline-none placeholder:text-zinc-500"
             rows={1}
             value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
+            onChange={(event) => setInput(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
                 sendMessage();
               }
             }}
@@ -117,6 +251,63 @@ export default function Home() {
           </button>
         </div>
       </footer>
+
+      {showHistory ? (
+        <div className="absolute inset-0 z-10 bg-black/60">
+          <div className="flex h-full w-[82%] max-w-sm flex-col border-r border-zinc-800 bg-zinc-950">
+            <div className="flex h-14 items-center justify-between border-b border-zinc-800 px-4">
+              <h2 className="font-semibold">历史记录</h2>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="rounded-lg px-3 py-2 text-sm text-zinc-300 active:bg-zinc-800"
+              >
+                关闭
+              </button>
+            </div>
+
+            <div className="border-b border-zinc-800 p-3">
+              <button
+                onClick={startNewChat}
+                className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black active:bg-zinc-200"
+              >
+                + 新对话
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2">
+              {conversations.map((conversation) => (
+                <div
+                  key={conversation.id}
+                  className={
+                    conversation.id === activeConversationId
+                      ? "mb-1 rounded-xl bg-zinc-800 p-3"
+                      : "mb-1 rounded-xl p-3 active:bg-zinc-900"
+                  }
+                >
+                  <button
+                    onClick={() => openConversation(conversation.id)}
+                    className="w-full text-left"
+                  >
+                    <div className="line-clamp-1 text-sm font-medium">
+                      {conversation.title}
+                    </div>
+                    <div className="mt-1 text-xs text-zinc-500">
+                      {new Date(conversation.updatedAt).toLocaleDateString("zh-CN")}
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => deleteConversation(conversation.id)}
+                    className="mt-2 text-xs text-zinc-500 active:text-red-400"
+                  >
+                    删除
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
