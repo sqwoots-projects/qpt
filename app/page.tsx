@@ -17,6 +17,7 @@ type Conversation = {
 
 const STORAGE_KEY = "qpt_conversations";
 const ACTIVE_CONVERSATION_KEY = "qpt_active_conversation_id";
+const MEMORY_KEY = "qpt_memories";
 
 const welcomeMessage: Message = {
   role: "assistant",
@@ -49,6 +50,9 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showMemory, setShowMemory] = useState(false);
+  const [memories, setMemories] = useState<string[]>([]);
+  const [newMemory, setNewMemory] = useState("");
 
   const activeConversation = useMemo(() => {
     return conversations.find(
@@ -91,6 +95,18 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    const savedMemories = localStorage.getItem(MEMORY_KEY);
+    if (!savedMemories) return;
+
+    try {
+      const parsed = JSON.parse(savedMemories) as string[];
+      setMemories(parsed);
+    } catch (error) {
+      console.error("Failed to load memories:", error);
+    }
+  }, []);
+
+  useEffect(() => {
     if (conversations.length === 0) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
   }, [conversations]);
@@ -99,6 +115,10 @@ export default function Home() {
     if (!activeConversationId) return;
     localStorage.setItem(ACTIVE_CONVERSATION_KEY, activeConversationId);
   }, [activeConversationId]);
+
+  useEffect(() => {
+    localStorage.setItem(MEMORY_KEY, JSON.stringify(memories));
+  }, [memories]);
 
   function updateActiveConversation(nextMessages: Message[]) {
     setConversations((previous) =>
@@ -152,6 +172,20 @@ export default function Home() {
     });
   }
 
+  function addMemory() {
+    const text = newMemory.trim();
+    if (!text) return;
+
+    setMemories((previous) => [text, ...previous]);
+    setNewMemory("");
+  }
+
+  function deleteMemory(indexToDelete: number) {
+    setMemories((previous) =>
+      previous.filter((_, index) => index !== indexToDelete),
+    );
+  }
+
   async function sendMessage() {
     const text = input.trim();
     if (!text || isLoading || !activeConversation) return;
@@ -171,7 +205,7 @@ export default function Home() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ messages: nextMessages }),
+        body: JSON.stringify({ messages: nextMessages, memories }),
       });
 
       if (!response.ok || !response.body) {
@@ -213,7 +247,15 @@ export default function Home() {
           历史
         </button>
 
-        <h1 className="text-lg font-semibold">QPT</h1>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowMemory(true)}
+            className="rounded-lg px-3 py-2 text-sm text-zinc-300 active:bg-zinc-800"
+          >
+            记忆
+          </button>
+          <h1 className="text-lg font-semibold">QPT</h1>
+        </div>
 
         <button
           onClick={startNewChat}
@@ -321,6 +363,75 @@ export default function Home() {
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {showMemory ? (
+        <div className="absolute inset-0 z-20 bg-black/60">
+          <div className="ml-auto flex h-full w-[88%] max-w-sm flex-col border-l border-zinc-800 bg-zinc-950">
+            <div className="flex h-14 items-center justify-between border-b border-zinc-800 px-4">
+              <h2 className="font-semibold">记忆</h2>
+              <button
+                onClick={() => setShowMemory(false)}
+                className="rounded-lg px-3 py-2 text-sm text-zinc-300 active:bg-zinc-800"
+              >
+                关闭
+              </button>
+            </div>
+
+            <div className="border-b border-zinc-800 p-3">
+              <p className="mb-3 text-sm leading-relaxed text-zinc-400">
+                这里保存 QPT 需要长期记住的事情。比如：妈妈喜欢简单解释、常用中文、喜欢旅行。
+              </p>
+              <div className="flex gap-2">
+                <input
+                  value={newMemory}
+                  onChange={(event) => setNewMemory(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      addMemory();
+                    }
+                  }}
+                  placeholder="添加一条记忆…"
+                  className="min-w-0 flex-1 rounded-xl bg-zinc-900 px-3 py-2 text-sm outline-none placeholder:text-zinc-500"
+                />
+                <button
+                  onClick={addMemory}
+                  className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black active:bg-zinc-200"
+                >
+                  添加
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3">
+              {memories.length === 0 ? (
+                <p className="mt-6 text-center text-sm text-zinc-500">
+                  暂时没有记忆。
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {memories.map((memory, index) => (
+                    <div
+                      key={`${memory}-${index}`}
+                      className="rounded-xl bg-zinc-900 p-3"
+                    >
+                      <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                        {memory}
+                      </p>
+                      <button
+                        onClick={() => deleteMemory(index)}
+                        className="mt-2 text-xs text-zinc-500 active:text-red-400"
+                      >
+                        删除
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
