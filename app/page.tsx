@@ -16,6 +16,7 @@ type Conversation = {
 };
 
 const STORAGE_KEY = "qpt_conversations";
+const ACTIVE_CONVERSATION_KEY = "qpt_active_conversation_id";
 
 const welcomeMessage: Message = {
   role: "assistant",
@@ -64,8 +65,19 @@ export default function Home() {
       try {
         const parsed = JSON.parse(saved) as Conversation[];
         if (parsed.length > 0) {
+          const savedActiveConversationId = localStorage.getItem(
+            ACTIVE_CONVERSATION_KEY,
+          );
+          const savedConversationStillExists = parsed.some(
+            (conversation) => conversation.id === savedActiveConversationId,
+          );
+
           setConversations(parsed);
-          setActiveConversationId(parsed[0].id);
+          setActiveConversationId(
+            savedConversationStillExists && savedActiveConversationId
+              ? savedActiveConversationId
+              : parsed[0].id,
+          );
           return;
         }
       } catch (error) {
@@ -82,6 +94,11 @@ export default function Home() {
     if (conversations.length === 0) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations));
   }, [conversations]);
+
+  useEffect(() => {
+    if (!activeConversationId) return;
+    localStorage.setItem(ACTIVE_CONVERSATION_KEY, activeConversationId);
+  }, [activeConversationId]);
 
   function updateActiveConversation(nextMessages: Message[]) {
     setConversations((previous) =>
