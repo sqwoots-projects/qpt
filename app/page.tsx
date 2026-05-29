@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type Message = {
   role: "user" | "assistant";
@@ -399,7 +401,69 @@ export default function Home() {
                   className="mb-3 max-h-64 w-full rounded-xl object-cover"
                 />
               ) : null}
-              {message.content || (isLoading ? "正在回复…" : "")}
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  h1: ({ children }) => (
+                    <h1 className="mb-2 text-xl font-bold">{children}</h1>
+                  ),
+                  h2: ({ children }) => (
+                    <h2 className="mb-2 text-lg font-bold">{children}</h2>
+                  ),
+                  h3: ({ children }) => (
+                    <h3 className="mb-2 text-base font-bold">{children}</h3>
+                  ),
+                  p: ({ children }) => (
+                    <p className="mb-2 last:mb-0">{children}</p>
+                  ),
+                  ul: ({ children }) => (
+                    <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>
+                  ),
+                  ol: ({ children }) => (
+                    <ol className="mb-2 list-decimal space-y-1 pl-5">{children}</ol>
+                  ),
+                  li: ({ children }) => <li>{children}</li>,
+                  strong: ({ children }) => (
+                    <strong className="font-semibold">{children}</strong>
+                  ),
+                  em: ({ children }) => <em className="italic">{children}</em>,
+                  a: ({ children, href }) => (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="underline underline-offset-2"
+                    >
+                      {children}
+                    </a>
+                  ),
+                  code: ({ children }) => (
+                    <code className="rounded bg-black/30 px-1 py-0.5 text-sm">
+                      {children}
+                    </code>
+                  ),
+                  pre: ({ children }) => (
+                    <pre className="mb-2 overflow-x-auto rounded-xl bg-black/40 p-3 text-sm">
+                      {children}
+                    </pre>
+                  ),
+                  table: ({ children }) => (
+                    <div className="mb-2 overflow-x-auto">
+                      <table className="w-full border-collapse text-sm">{children}</table>
+                    </div>
+                  ),
+                  th: ({ children }) => (
+                    <th className="border border-zinc-700 px-2 py-1 text-left font-semibold">
+                      {children}
+                    </th>
+                  ),
+                  td: ({ children }) => (
+                    <td className="border border-zinc-700 px-2 py-1">{children}</td>
+                  ),
+                }}
+              >
+                {message.content || (isLoading ? "正在回复…" : "")}
+              </ReactMarkdown>
               {isLoading && index === messages.length - 1 ? (
                 <span className="ml-1 animate-pulse">▌</span>
               ) : null}
