@@ -405,24 +405,24 @@ export default function Home() {
                 remarkPlugins={[remarkGfm]}
                 components={{
                   h1: ({ children }) => (
-                    <h1 className="mb-2 text-xl font-bold">{children}</h1>
+                    <h1 className="mb-2 text-xl font-bold leading-snug">{children}</h1>
                   ),
                   h2: ({ children }) => (
-                    <h2 className="mb-2 text-lg font-bold">{children}</h2>
+                    <h2 className="mb-2 text-lg font-bold leading-snug">{children}</h2>
                   ),
                   h3: ({ children }) => (
-                    <h3 className="mb-2 text-base font-bold">{children}</h3>
+                    <h3 className="mb-1 text-base font-bold leading-snug">{children}</h3>
                   ),
                   p: ({ children }) => (
-                    <p className="mb-2 last:mb-0">{children}</p>
+                    <p className="mb-1.5 leading-7 last:mb-0">{children}</p>
                   ),
                   ul: ({ children }) => (
-                    <ul className="mb-2 list-disc space-y-1 pl-5">{children}</ul>
+                    <ul className="my-1.5 list-disc space-y-0.5 pl-5 leading-7">{children}</ul>
                   ),
                   ol: ({ children }) => (
-                    <ol className="mb-2 list-decimal space-y-1 pl-5">{children}</ol>
+                    <ol className="my-1.5 list-decimal space-y-0.5 pl-5 leading-7">{children}</ol>
                   ),
-                  li: ({ children }) => <li>{children}</li>,
+                  li: ({ children }) => <li className="pl-1">{children}</li>,
                   strong: ({ children }) => (
                     <strong className="font-semibold">{children}</strong>
                   ),
@@ -443,13 +443,13 @@ export default function Home() {
                     </code>
                   ),
                   pre: ({ children }) => (
-                    <pre className="mb-2 overflow-x-auto rounded-xl bg-black/40 p-3 text-sm">
+                    <pre className="my-2 overflow-x-auto rounded-xl bg-black/40 p-3 text-sm leading-6">
                       {children}
                     </pre>
                   ),
                   table: ({ children }) => (
-                    <div className="mb-2 overflow-x-auto">
-                      <table className="w-full border-collapse text-sm">{children}</table>
+                    <div className="my-2 overflow-x-auto">
+                      <table className="w-full border-collapse text-sm leading-6">{children}</table>
                     </div>
                   ),
                   th: ({ children }) => (
@@ -458,14 +458,14 @@ export default function Home() {
                     </th>
                   ),
                   td: ({ children }) => (
-                    <td className="border border-zinc-700 px-2 py-1">{children}</td>
+                    <td className="border border-zinc-700 px-2 py-1 align-top">{children}</td>
                   ),
                 }}
               >
-                {message.content || (isLoading ? "正在回复…" : "")}
+                {message.content || (isLoading ? "正在回复" : "")}
               </ReactMarkdown>
               {isLoading && index === messages.length - 1 ? (
-                <span className="ml-1 animate-pulse">▌</span>
+                <span className="inline-block animate-pulse">▌</span>
               ) : null}
             </div>
           ))}
