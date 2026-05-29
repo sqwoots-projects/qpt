@@ -42,38 +42,33 @@ export async function POST(req: Request) {
             .join("\n")}`
         : "";
 
-    const input: OpenAI.Responses.ResponseInput = [
-      {
-        role: "system",
-        content: `${systemPrompt}${memoryText}`,
-      },
-      ...messages.map((message) => {
-        if (message.role === "user" && message.imageUrl) {
-          return {
-            role: "user" as const,
-            content: [
-              {
-                type: "input_text" as const,
-                text: message.content || "请帮我看看这张图片。",
-              },
-              {
-                type: "input_image" as const,
-                image_url: message.imageUrl,
-              },
-            ],
-          };
-        }
-
+    const input = messages.map((message) => {
+      if (message.role === "user" && message.imageUrl) {
         return {
-          role: message.role,
-          content: message.content,
+          role: "user" as const,
+          content: [
+            {
+              type: "input_text" as const,
+              text: message.content || "请帮我看看这张图片。",
+            },
+            {
+              type: "input_image" as const,
+              image_url: message.imageUrl,
+            },
+          ],
         };
-      }),
-    ];
+      }
+
+      return {
+        role: message.role,
+        content: message.content,
+      };
+    });
 
     const stream = await client.responses.create({
       model: "gpt-4.1-mini",
-      input,
+      instructions: `${systemPrompt}${memoryText}`,
+      input: input as OpenAI.Responses.ResponseInput,
       stream: true,
     });
 
