@@ -372,7 +372,11 @@ export default function Home() {
           >
             记忆
           </button>
-          <h1 className="text-lg font-semibold">QPT</h1>
+
+          <div className="flex flex-col items-center">
+            <h1 className="text-lg font-semibold">QPT</h1>
+            <span className="text-[10px] text-zinc-500">v0.1.4</span>
+          </div>
         </div>
 
         <button
