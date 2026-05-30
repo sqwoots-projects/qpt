@@ -356,7 +356,7 @@ export default function Home() {
   }
 
   return (
-    <main className="relative flex h-dvh flex-col bg-black text-white">
+    <main className="relative flex h-[100dvh] flex-col overflow-hidden bg-black pt-[env(safe-area-inset-top)] text-white">
       <header className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-800 px-4">
         <button
           onClick={() => setShowHistory(true)}
@@ -383,15 +383,15 @@ export default function Home() {
         </button>
       </header>
 
-      <section className="flex-1 overflow-y-auto px-4 py-5">
+      <section className="flex-1 overflow-y-auto px-4 py-4">
         <div className="mx-auto flex max-w-xl flex-col gap-4">
           {messages.map((message, index) => (
             <div
               key={index}
               className={
                 message.role === "user"
-                  ? "ml-auto max-w-[85%] whitespace-pre-wrap rounded-2xl bg-blue-600 px-4 py-3 text-base leading-relaxed"
-                  : "mr-auto max-w-[85%] whitespace-pre-wrap rounded-2xl bg-zinc-900 px-4 py-3 text-base leading-relaxed"
+                  ? "ml-auto max-w-[82%] whitespace-pre-wrap rounded-2xl bg-blue-600 px-4 py-3 text-base leading-6"
+                  : "mr-auto max-w-[82%] rounded-2xl bg-zinc-900 px-4 py-3 text-base leading-6"
               }
             >
               {message.imageUrl ? (
@@ -414,15 +414,15 @@ export default function Home() {
                     <h3 className="mb-1 text-base font-bold leading-snug">{children}</h3>
                   ),
                   p: ({ children }) => (
-                    <p className="mb-1.5 leading-7 last:mb-0">{children}</p>
+                    <p className="mb-1 leading-6 last:mb-0">{children}</p>
                   ),
                   ul: ({ children }) => (
-                    <ul className="my-1.5 list-disc space-y-0.5 pl-5 leading-7">{children}</ul>
+                    <ul className="my-1 list-disc space-y-0 pl-4 leading-6">{children}</ul>
                   ),
                   ol: ({ children }) => (
-                    <ol className="my-1.5 list-decimal space-y-0.5 pl-5 leading-7">{children}</ol>
+                    <ol className="my-1 list-decimal space-y-0 pl-4 leading-6">{children}</ol>
                   ),
-                  li: ({ children }) => <li className="pl-1">{children}</li>,
+                  li: ({ children }) => <li className="pl-0">{children}</li>,
                   strong: ({ children }) => (
                     <strong className="font-semibold">{children}</strong>
                   ),
@@ -462,17 +462,18 @@ export default function Home() {
                   ),
                 }}
               >
-                {message.content || (isLoading ? "正在回复" : "")}
+                {message.content
+                  ? `${message.content}${isLoading && index === messages.length - 1 ? " ▌" : ""}`
+                  : isLoading && index === messages.length - 1
+                    ? "正在回复 ▌"
+                    : ""}
               </ReactMarkdown>
-              {isLoading && index === messages.length - 1 ? (
-                <span className="inline-block animate-pulse">▌</span>
-              ) : null}
             </div>
           ))}
         </div>
       </section>
 
-      <footer className="shrink-0 border-t border-zinc-800 bg-black px-3 pb-5 pt-3">
+      <footer className="shrink-0 border-t border-zinc-800 bg-black px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3">
         <div className="mx-auto max-w-xl rounded-2xl bg-zinc-900 p-2">
           {selectedImageUrl ? (
             <div className="mb-2 flex items-start gap-2 rounded-xl bg-zinc-800 p-2">
@@ -530,7 +531,7 @@ export default function Home() {
       </footer>
 
       {showHistory ? (
-        <div className="absolute inset-0 z-10 bg-black/60">
+        <div className="absolute inset-0 z-10 bg-black/60 pt-[env(safe-area-inset-top)]">
           <div className="flex h-full w-[82%] max-w-sm flex-col border-r border-zinc-800 bg-zinc-950">
             <div className="flex h-14 items-center justify-between border-b border-zinc-800 px-4">
               <h2 className="font-semibold">历史记录</h2>
@@ -600,7 +601,7 @@ export default function Home() {
       ) : null}
 
       {showMemory ? (
-        <div className="absolute inset-0 z-20 bg-black/60">
+        <div className="absolute inset-0 z-20 bg-black/60 pt-[env(safe-area-inset-top)]">
           <div className="ml-auto flex h-full w-[88%] max-w-sm flex-col border-l border-zinc-800 bg-zinc-950">
             <div className="flex h-14 items-center justify-between border-b border-zinc-800 px-4">
               <h2 className="font-semibold">记忆</h2>
