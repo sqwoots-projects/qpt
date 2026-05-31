@@ -83,17 +83,37 @@ export async function POST(req: Request) {
 
     const readableStream = new ReadableStream({
       async start(controller) {
+        let closed = false;
+
         try {
           for await (const event of stream) {
+            if (closed) break;
+
             if (event.type === "response.output_text.delta") {
-              controller.enqueue(encoder.encode(event.delta));
+              try {
+                controller.enqueue(encoder.encode(event.delta));
+              } catch {
+                closed = true;
+                break;
+              }
             }
           }
         } catch (error) {
           console.error("Streaming error:", error);
-          controller.enqueue(encoder.encode("\n\n抱歉，刚刚回复时出现了一点问题。"));
+
+          if (!closed) {
+            try {
+              controller.enqueue(
+                encoder.encode("\n\n抱歉，刚刚回复时出现了一点问题。"),
+              );
+            } catch {}
+          }
         } finally {
-          controller.close();
+          if (!closed) {
+            try {
+              controller.close();
+            } catch {}
+          }
         }
       },
     });
