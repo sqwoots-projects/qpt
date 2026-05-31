@@ -21,7 +21,7 @@ type Conversation = {
 const STORAGE_KEY = "qpt_conversations";
 const ACTIVE_CONVERSATION_KEY = "qpt_active_conversation_id";
 const MEMORY_KEY = "qpt_memories";
-const APP_VERSION = "v0.3.0";
+const APP_VERSION = "v0.3.1";
 
 const welcomeMessage: Message = {
   role: "assistant",
@@ -175,10 +175,8 @@ export default function Home() {
   const [newMemory, setNewMemory] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
-  const [isListening, setIsListening] = useState(false);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<any>(null);
 
   const activeConversation = useMemo(() => {
     return conversations.find(
@@ -354,55 +352,6 @@ export default function Home() {
     }
   }
 
-  function startVoiceInput() {
-    if (isLoading) return;
-
-    const SpeechRecognition =
-      (window as any).SpeechRecognition ||
-      (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      alert("这个浏览器暂时不支持语音输入。可以使用键盘上的麦克风按钮输入。");
-      return;
-    }
-
-    if (recognitionRef.current && isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = "zh-CN";
-    recognition.interimResults = true;
-    recognition.continuous = false;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onresult = (event: any) => {
-      let transcript = "";
-
-      for (let index = event.resultIndex; index < event.results.length; index += 1) {
-        transcript += event.results[index][0].transcript;
-      }
-
-      setInput(transcript);
-    };
-
-    recognition.onerror = () => {
-      setIsListening(false);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-  }
-
   async function autoSaveMemories(finalMessages: Message[]) {
     try {
       const response = await fetch("/api/memory", {
@@ -532,7 +481,7 @@ export default function Home() {
 
       <section ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3">
         {messages.length <= 1 ? (
-          <div className="flex min-h-full flex-col items-center justify-center px-5 pb-10 text-center">
+          <div className="flex h-full flex-col items-center justify-center px-5 text-center">
             <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] bg-white shadow-[0_16px_40px_-24px_rgba(70,106,85,0.65)] ring-1 ring-[#e4ebe2]">
               <img
                 src="/icon-512.png"
@@ -613,8 +562,8 @@ export default function Home() {
         )}
       </section>
 
-      <footer className="pointer-events-none shrink-0 bg-gradient-to-t from-[#fbfaf3] via-[#fbfaf3]/95 to-transparent px-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-5">
-        <div className="pointer-events-auto mx-auto max-w-xl rounded-[32px] border border-[#dfe8dd] bg-white p-2 shadow-[0_12px_36px_-22px_rgba(70,106,85,0.6)]">
+      <footer className="pointer-events-none shrink-0 bg-gradient-to-t from-[#fbfaf3] via-[#fbfaf3]/95 to-transparent px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
+        <div className="pointer-events-auto mx-auto max-w-xl rounded-[28px] border border-[#dfe8dd] bg-white px-2 py-1.5 shadow-[0_12px_36px_-22px_rgba(70,106,85,0.6)]">
           {selectedImageUrl ? (
             <div className="mb-2 flex items-center gap-2 rounded-3xl bg-[#f1f6f0] p-2">
               <img
@@ -659,19 +608,6 @@ export default function Home() {
                 }
               }}
             />
-
-            <button
-              onClick={startVoiceInput}
-              disabled={isLoading}
-              className={
-                isListening
-                  ? "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#466a55] text-xl text-white shadow-[0_8px_18px_-10px_rgba(70,106,85,0.9)]"
-                  : "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e9f1e7] text-xl text-[#466a55] active:scale-95 disabled:opacity-50"
-              }
-              aria-label="语音输入"
-            >
-              {isListening ? "●" : "🎙️"}
-            </button>
 
             <button
               onClick={sendMessage}
