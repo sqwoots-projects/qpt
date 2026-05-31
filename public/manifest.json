@@ -1,11 +1,11 @@
 {
-  "name": "QPT",
-  "short_name": "QPT",
+  "name": "绮PT",
+  "short_name": "绮PT",
   "description": "私人中文 AI 助手",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#fbfaf3",
+  "theme_color": "#fbfaf3",
   "orientation": "portrait",
   "icons": [
     {

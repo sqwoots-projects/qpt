@@ -13,14 +13,14 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "QPT",
+  title: "绮PT",
   description: "私人中文 AI 助手",
-  applicationName: "QPT",
+  applicationName: "绮PT",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "QPT",
+    title: "绮PT",
   },
   icons: {
     icon: [
@@ -39,7 +39,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   viewportFit: "cover",
-  themeColor: "#000000",
+  themeColor: "#fbfaf3",
 };
 
 export default function RootLayout({
@@ -52,7 +52,7 @@ export default function RootLayout({
       lang="zh-CN"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-black">{children}</body>
+      <body className="min-h-full flex flex-col bg-[#fbfaf3]">{children}</body>
     </html>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -21,10 +21,11 @@ type Conversation = {
 const STORAGE_KEY = "qpt_conversations";
 const ACTIVE_CONVERSATION_KEY = "qpt_active_conversation_id";
 const MEMORY_KEY = "qpt_memories";
+const APP_VERSION = "v0.2.0";
 
 const welcomeMessage: Message = {
   role: "assistant",
-  content: "你好，我是 QPT。有什么我可以帮你的吗？",
+  content: "你好，我是 绮PT。有什么我可以帮你的吗？",
 };
 
 function createNewConversation(): Conversation {
@@ -83,6 +84,86 @@ function resizeImageToDataUrl(file: File): Promise<string> {
   });
 }
 
+function MarkdownMessage({ content }: { content: string }) {
+  return (
+    <div className="text-[16px] leading-[1.6] text-[#223127]">
+      <ReactMarkdown
+        remarkPlugins={[remarkGfm]}
+        components={{
+          h1: ({ children }) => (
+            <h1 className="mb-2 mt-1 text-xl font-semibold leading-snug text-[#18231c]">
+              {children}
+            </h1>
+          ),
+          h2: ({ children }) => (
+            <h2 className="mb-2 mt-1 text-lg font-semibold leading-snug text-[#18231c]">
+              {children}
+            </h2>
+          ),
+          h3: ({ children }) => (
+            <h3 className="mb-1 mt-1 text-base font-semibold leading-snug text-[#18231c]">
+              {children}
+            </h3>
+          ),
+          p: ({ children }) => (
+            <p className="my-1 first:mt-0 last:mb-0">{children}</p>
+          ),
+          ul: ({ children }) => (
+            <ul className="my-1 list-disc space-y-0.5 pl-5">{children}</ul>
+          ),
+          ol: ({ children }) => (
+            <ol className="my-1 list-decimal space-y-0.5 pl-5">{children}</ol>
+          ),
+          li: ({ children }) => <li>{children}</li>,
+          strong: ({ children }) => (
+            <strong className="font-semibold text-[#18231c]">{children}</strong>
+          ),
+          em: ({ children }) => <em className="italic">{children}</em>,
+          a: ({ children, href }) => (
+            <a
+              href={href}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[#426a50] underline underline-offset-2"
+            >
+              {children}
+            </a>
+          ),
+          code: ({ children }) => (
+            <code className="rounded-md bg-[#edf2ec] px-1.5 py-0.5 font-mono text-[14px] text-[#26372b]">
+              {children}
+            </code>
+          ),
+          pre: ({ children }) => (
+            <pre className="my-2 overflow-x-auto rounded-2xl bg-[#edf2ec] p-3 text-sm leading-6 text-[#26372b]">
+              {children}
+            </pre>
+          ),
+          table: ({ children }) => (
+            <div className="my-2 overflow-x-auto rounded-xl border border-[#dfe8dd]">
+              <table className="w-full border-collapse text-sm leading-6">
+                {children}
+              </table>
+            </div>
+          ),
+          th: ({ children }) => (
+            <th className="border-b border-[#dfe8dd] bg-[#f1f6f0] px-3 py-2 text-left font-semibold">
+              {children}
+            </th>
+          ),
+          td: ({ children }) => (
+            <td className="border-b border-[#e8eee6] px-3 py-2 align-top">
+              {children}
+            </td>
+          ),
+        }}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
+  );
+}
+
 export default function Home() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConversationId, setActiveConversationId] = useState<string>("");
@@ -94,6 +175,7 @@ export default function Home() {
   const [newMemory, setNewMemory] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   const activeConversation = useMemo(() => {
     return conversations.find(
@@ -102,6 +184,8 @@ export default function Home() {
   }, [activeConversationId, conversations]);
 
   const messages = activeConversation?.messages ?? [welcomeMessage];
+
+  const latestMessageContent = messages[messages.length - 1]?.content ?? "";
 
   const filteredConversations = useMemo(() => {
     const keyword = historySearch.trim().toLowerCase();
@@ -123,6 +207,7 @@ export default function Home() {
     if (saved) {
       try {
         const parsed = JSON.parse(saved) as Conversation[];
+
         if (parsed.length > 0) {
           const savedActiveConversationId = localStorage.getItem(
             ACTIVE_CONVERSATION_KEY,
@@ -175,6 +260,13 @@ export default function Home() {
     localStorage.setItem(MEMORY_KEY, JSON.stringify(memories));
   }, [memories]);
 
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: "smooth",
+    });
+  }, [messages.length, latestMessageContent]);
+
   function updateActiveConversation(nextMessages: Message[]) {
     setConversations((previous) =>
       previous.map((conversation) => {
@@ -199,6 +291,7 @@ export default function Home() {
     setInput("");
     setHistorySearch("");
     setShowHistory(false);
+    setShowMemory(false);
   }
 
   function openConversation(id: string) {
@@ -348,7 +441,7 @@ export default function Home() {
       console.error(error);
       updateActiveConversation([
         ...nextMessages,
-        { role: "assistant", content: "抱歉，QPT 刚刚出了点问题。请再试一次。" },
+        { role: "assistant", content: "抱歉，绮PT 刚刚出了点问题。请再试一次。" },
       ]);
     } finally {
       setIsLoading(false);
@@ -356,139 +449,128 @@ export default function Home() {
   }
 
   return (
-    <main className="relative flex h-[100dvh] flex-col overflow-hidden bg-black pt-[env(safe-area-inset-top)] text-white">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-zinc-800 px-4">
-        <button
-          onClick={() => setShowHistory(true)}
-          className="rounded-lg px-3 py-2 text-sm text-zinc-300 active:bg-zinc-800"
-        >
-          历史
-        </button>
-
-        <div className="flex items-center gap-2">
+    <main className="relative flex h-[100dvh] flex-col overflow-hidden bg-[#fbfaf3] text-[#223127]">
+      <header className="z-20 shrink-0 bg-[#fbfaf3]/85 px-2 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+        <div className="relative flex h-14 items-center">
           <button
-            onClick={() => setShowMemory(true)}
-            className="rounded-lg px-3 py-2 text-sm text-zinc-300 active:bg-zinc-800"
+            onClick={() => setShowHistory(true)}
+            aria-label="菜单"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-2xl active:bg-[#edf2ec]"
           >
-            记忆
+            ☰
           </button>
 
-          <div className="flex flex-col items-center">
-            <h1 className="text-lg font-semibold">QPT</h1>
-            <span className="text-[10px] text-zinc-500">v0.1.4</span>
+          <div className="pointer-events-none absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center">
+            <div className="text-[18px] font-bold leading-none tracking-tight text-[#466a55]">
+              绮PT
+            </div>
+            <div className="mt-1 text-[10px] font-medium leading-none text-[#7f8d80]">
+              {APP_VERSION}
+            </div>
           </div>
-        </div>
 
-        <button
-          onClick={startNewChat}
-          className="rounded-lg px-3 py-2 text-sm text-zinc-300 active:bg-zinc-800"
-        >
-          新对话
-        </button>
+          <button
+            onClick={startNewChat}
+            aria-label="新对话"
+            className="ml-auto flex h-11 w-11 items-center justify-center rounded-full text-2xl active:bg-[#edf2ec]"
+          >
+            ✎
+          </button>
+        </div>
       </header>
 
-      <section className="flex-1 overflow-y-auto px-4 py-4">
-        <div className="mx-auto flex max-w-xl flex-col gap-4">
-          {messages.map((message, index) => (
-            <div
-              key={index}
-              className={
-                message.role === "user"
-                  ? "ml-auto max-w-[82%] whitespace-pre-wrap rounded-2xl bg-blue-600 px-4 py-3 text-base leading-6"
-                  : "mr-auto max-w-[82%] rounded-2xl bg-zinc-900 px-4 py-3 text-base leading-6"
-              }
-            >
-              {message.imageUrl ? (
-                <img
-                  src={message.imageUrl}
-                  alt="上传的图片"
-                  className="mb-3 max-h-64 w-full rounded-xl object-cover"
-                />
-              ) : null}
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  h1: ({ children }) => (
-                    <h1 className="mb-2 text-xl font-bold leading-snug">{children}</h1>
-                  ),
-                  h2: ({ children }) => (
-                    <h2 className="mb-2 text-lg font-bold leading-snug">{children}</h2>
-                  ),
-                  h3: ({ children }) => (
-                    <h3 className="mb-1 text-base font-bold leading-snug">{children}</h3>
-                  ),
-                  p: ({ children }) => (
-                    <p className="mb-1 leading-6 last:mb-0">{children}</p>
-                  ),
-                  ul: ({ children }) => (
-                    <ul className="my-1 list-disc space-y-0 pl-4 leading-6">{children}</ul>
-                  ),
-                  ol: ({ children }) => (
-                    <ol className="my-1 list-decimal space-y-0 pl-4 leading-6">{children}</ol>
-                  ),
-                  li: ({ children }) => <li className="pl-0">{children}</li>,
-                  strong: ({ children }) => (
-                    <strong className="font-semibold">{children}</strong>
-                  ),
-                  em: ({ children }) => <em className="italic">{children}</em>,
-                  a: ({ children, href }) => (
-                    <a
-                      href={href}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="underline underline-offset-2"
-                    >
-                      {children}
-                    </a>
-                  ),
-                  code: ({ children }) => (
-                    <code className="rounded bg-black/30 px-1 py-0.5 text-sm">
-                      {children}
-                    </code>
-                  ),
-                  pre: ({ children }) => (
-                    <pre className="my-2 overflow-x-auto rounded-xl bg-black/40 p-3 text-sm leading-6">
-                      {children}
-                    </pre>
-                  ),
-                  table: ({ children }) => (
-                    <div className="my-2 overflow-x-auto">
-                      <table className="w-full border-collapse text-sm leading-6">{children}</table>
-                    </div>
-                  ),
-                  th: ({ children }) => (
-                    <th className="border border-zinc-700 px-2 py-1 text-left font-semibold">
-                      {children}
-                    </th>
-                  ),
-                  td: ({ children }) => (
-                    <td className="border border-zinc-700 px-2 py-1 align-top">{children}</td>
-                  ),
-                }}
-              >
-                {message.content
-                  ? `${message.content}${isLoading && index === messages.length - 1 ? " ▌" : ""}`
-                  : isLoading && index === messages.length - 1
-                    ? "正在回复 ▌"
-                    : ""}
-              </ReactMarkdown>
+      <section ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3">
+        {messages.length <= 1 ? (
+          <div className="flex min-h-full flex-col items-center justify-center px-5 pb-10 text-center">
+            <div className="flex h-24 w-24 items-center justify-center rounded-[28px] bg-white text-[28px] font-black text-[#466a55] shadow-[0_16px_40px_-24px_rgba(70,106,85,0.65)] ring-1 ring-[#e4ebe2]">
+              绮PT
             </div>
-          ))}
-        </div>
+
+            <h1 className="mt-7 text-[28px] font-bold tracking-tight text-[#223127]">
+              你好，我是 绮PT
+            </h1>
+
+            <p className="mt-2 text-[16px] text-[#6f7f73]">
+              有什么我可以帮您的吗？
+            </p>
+
+            <div className="mt-7 grid w-full max-w-sm grid-cols-2 gap-2 text-left">
+              {[
+                "帮我看这张照片",
+                "今天的天气",
+                "帮我翻译一下",
+                "帮我写一段话",
+              ].map((prompt) => (
+                <button
+                  key={prompt}
+                  onClick={() => setInput(prompt)}
+                  className="rounded-2xl bg-white px-4 py-3 text-[14px] font-medium text-[#405145] shadow-sm ring-1 ring-[#e8eee6] active:bg-[#f1f6f0]"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="mx-auto flex max-w-xl flex-col gap-3 pb-3">
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                className={message.role === "user" ? "flex justify-end" : "flex justify-start"}
+              >
+                <div
+                  className={
+                    message.role === "user"
+                      ? "max-w-[82%] whitespace-pre-wrap break-words rounded-[26px] bg-[#466a55] px-4 py-2.5 text-[16px] leading-[1.55] text-white shadow-[0_8px_20px_-12px_rgba(70,106,85,0.7)]"
+                      : "w-[92%] rounded-[26px] border border-[#e1eadf] bg-white px-4 py-3 shadow-[0_10px_28px_-24px_rgba(70,106,85,0.5)]"
+                  }
+                  style={
+                    message.role === "user"
+                      ? { borderBottomRightRadius: 10 }
+                      : { borderBottomLeftRadius: 10 }
+                  }
+                >
+                  {message.imageUrl ? (
+                    <img
+                      src={message.imageUrl}
+                      alt="上传的图片"
+                      className="mb-3 max-h-72 w-full rounded-2xl object-cover"
+                    />
+                  ) : null}
+
+                  {message.role === "assistant" ? (
+                    <MarkdownMessage
+                      content={
+                        message.content
+                          ? `${message.content}${isLoading && index === messages.length - 1 ? " ▌" : ""}`
+                          : isLoading && index === messages.length - 1
+                            ? "正在回复 ▌"
+                            : ""
+                      }
+                    />
+                  ) : (
+                    message.content
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
-      <footer className="shrink-0 border-t border-zinc-800 bg-black px-3 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3">
-        <div className="mx-auto max-w-xl rounded-2xl bg-zinc-900 p-2">
+      <footer className="pointer-events-none shrink-0 bg-gradient-to-t from-[#fbfaf3] via-[#fbfaf3]/95 to-transparent px-3 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-5">
+        <div className="pointer-events-auto mx-auto max-w-xl rounded-[32px] border border-[#dfe8dd] bg-white p-2 shadow-[0_12px_36px_-22px_rgba(70,106,85,0.6)]">
           {selectedImageUrl ? (
-            <div className="mb-2 flex items-start gap-2 rounded-xl bg-zinc-800 p-2">
+            <div className="mb-2 flex items-center gap-2 rounded-3xl bg-[#f1f6f0] p-2">
               <img
                 src={selectedImageUrl}
                 alt="准备发送的图片"
-                className="h-16 w-16 rounded-lg object-cover"
+                className="h-16 w-16 rounded-2xl object-cover"
               />
+
               <button
                 onClick={() => setSelectedImageUrl(null)}
-                className="rounded-lg px-3 py-2 text-sm text-zinc-300 active:bg-zinc-700"
+                className="rounded-full px-3 py-2 text-sm text-[#6f7f73] active:bg-white"
               >
                 移除图片
               </button>
@@ -496,8 +578,8 @@ export default function Home() {
           ) : null}
 
           <div className="flex items-end gap-2">
-            <label className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-800 text-lg active:bg-zinc-700">
-              📷
+            <label className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e9f1e7] text-xl active:scale-95">
+              ＋
               <input
                 type="file"
                 accept="image/*"
@@ -510,8 +592,8 @@ export default function Home() {
             </label>
 
             <textarea
-              placeholder={selectedImageUrl ? "想问这张图片什么？" : "输入你的问题…"}
-              className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-3 py-2 text-base outline-none placeholder:text-zinc-500"
+              placeholder={selectedImageUrl ? "想问这张图片什么？" : "发消息…"}
+              className="max-h-32 min-h-11 flex-1 resize-none bg-transparent px-1 py-2.5 text-[16px] leading-[1.4] text-[#223127] outline-none placeholder:text-[#9aa69b]"
               rows={1}
               value={input}
               onChange={(event) => setInput(event.target.value)}
@@ -526,46 +608,56 @@ export default function Home() {
             <button
               onClick={sendMessage}
               disabled={isLoading || (!input.trim() && !selectedImageUrl)}
-              className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#466a55] text-xl font-bold text-white shadow-[0_8px_18px_-10px_rgba(70,106,85,0.9)] disabled:bg-[#e0e8df] disabled:text-[#9aa69b]"
             >
-              发送
+              ↑
             </button>
           </div>
         </div>
       </footer>
 
       {showHistory ? (
-        <div className="absolute inset-0 z-10 bg-black/60 pt-[env(safe-area-inset-top)]">
-          <div className="flex h-full w-[82%] max-w-sm flex-col border-r border-zinc-800 bg-zinc-950">
-            <div className="flex h-14 items-center justify-between border-b border-zinc-800 px-4">
-              <h2 className="font-semibold">历史记录</h2>
+        <div className="absolute inset-0 z-30 bg-black/20 pt-[env(safe-area-inset-top)] backdrop-blur-sm">
+          <div className="flex h-full w-[86%] max-w-sm flex-col rounded-r-[32px] bg-[#fbfaf3] shadow-2xl">
+            <div className="flex h-14 items-center justify-between px-5">
+              <h2 className="text-[20px] font-semibold text-[#223127]">历史</h2>
               <button
                 onClick={() => setShowHistory(false)}
-                className="rounded-lg px-3 py-2 text-sm text-zinc-300 active:bg-zinc-800"
+                className="rounded-full px-3 py-2 text-sm text-[#6f7f73] active:bg-[#edf2ec]"
               >
                 关闭
               </button>
             </div>
 
-            <div className="space-y-3 border-b border-zinc-800 p-3">
+            <div className="space-y-3 px-4">
               <button
                 onClick={startNewChat}
-                className="w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black active:bg-zinc-200"
+                className="w-full rounded-2xl bg-[#e9f1e7] px-4 py-3 text-left text-[15px] font-medium text-[#466a55] active:bg-[#dfe8dd]"
               >
-                + 新对话
+                ＋ 新对话
               </button>
 
               <input
                 value={historySearch}
                 onChange={(event) => setHistorySearch(event.target.value)}
-                placeholder="搜索历史记录…"
-                className="w-full rounded-xl bg-zinc-900 px-3 py-3 text-sm outline-none placeholder:text-zinc-500"
+                placeholder="搜索对话"
+                className="w-full rounded-2xl bg-[#f0f5ef] px-4 py-3 text-[15px] outline-none placeholder:text-[#9aa69b]"
               />
+
+              <button
+                onClick={() => {
+                  setShowHistory(false);
+                  setTimeout(() => setShowMemory(true), 150);
+                }}
+                className="w-full rounded-2xl px-4 py-3 text-left text-[15px] text-[#405145] active:bg-[#edf2ec]"
+              >
+                记忆
+              </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-2">
+            <div className="mt-4 flex-1 overflow-y-auto px-2 pb-8">
               {filteredConversations.length === 0 ? (
-                <p className="mt-6 text-center text-sm text-zinc-500">
+                <p className="mt-8 text-center text-sm text-[#8a968b]">
                   没有找到相关对话。
                 </p>
               ) : null}
@@ -575,25 +667,25 @@ export default function Home() {
                   key={conversation.id}
                   className={
                     conversation.id === activeConversationId
-                      ? "mb-1 rounded-xl bg-zinc-800 p-3"
-                      : "mb-1 rounded-xl p-3 active:bg-zinc-900"
+                      ? "mb-1 rounded-2xl bg-[#edf2ec] p-3"
+                      : "mb-1 rounded-2xl p-3 active:bg-[#f0f5ef]"
                   }
                 >
                   <button
                     onClick={() => openConversation(conversation.id)}
                     className="w-full text-left"
                   >
-                    <div className="line-clamp-1 text-sm font-medium">
+                    <div className="line-clamp-1 text-[15px] font-medium text-[#223127]">
                       {conversation.title}
                     </div>
-                    <div className="mt-1 text-xs text-zinc-500">
+                    <div className="mt-1 text-[12px] text-[#8a968b]">
                       {new Date(conversation.updatedAt).toLocaleDateString("zh-CN")}
                     </div>
                   </button>
 
                   <button
                     onClick={() => deleteConversation(conversation.id)}
-                    className="mt-2 text-xs text-zinc-500 active:text-red-400"
+                    className="mt-2 text-xs text-[#8a968b] active:text-red-500"
                   >
                     删除
                   </button>
@@ -605,62 +697,60 @@ export default function Home() {
       ) : null}
 
       {showMemory ? (
-        <div className="absolute inset-0 z-20 bg-black/60 pt-[env(safe-area-inset-top)]">
-          <div className="ml-auto flex h-full w-[88%] max-w-sm flex-col border-l border-zinc-800 bg-zinc-950">
-            <div className="flex h-14 items-center justify-between border-b border-zinc-800 px-4">
-              <h2 className="font-semibold">记忆</h2>
+        <div className="absolute inset-0 z-40 bg-black/20 pt-[env(safe-area-inset-top)] backdrop-blur-sm">
+          <div className="ml-auto flex h-full w-[88%] max-w-sm flex-col rounded-l-[32px] bg-[#fbfaf3] shadow-2xl">
+            <div className="flex h-14 items-center justify-between px-5">
+              <div>
+                <h2 className="text-[20px] font-semibold text-[#223127]">记忆</h2>
+                <p className="text-[12px] text-[#7f8d80]">绮PT 会参考这些记忆</p>
+              </div>
+
               <button
                 onClick={() => setShowMemory(false)}
-                className="rounded-lg px-3 py-2 text-sm text-zinc-300 active:bg-zinc-800"
+                className="rounded-full px-3 py-2 text-sm text-[#6f7f73] active:bg-[#edf2ec]"
               >
                 关闭
               </button>
             </div>
 
-            <div className="border-b border-zinc-800 p-3">
-              <p className="mb-3 text-sm leading-relaxed text-zinc-400">
-                QPT 会自动保存长期有用的记忆。这里主要用于查看、补充或删除记忆。
-              </p>
-              <div className="flex gap-2">
-                <input
-                  value={newMemory}
-                  onChange={(event) => setNewMemory(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                      event.preventDefault();
-                      addMemory();
-                    }
-                  }}
-                  placeholder="添加一条记忆…"
-                  className="min-w-0 flex-1 rounded-xl bg-zinc-900 px-3 py-2 text-sm outline-none placeholder:text-zinc-500"
-                />
-                <button
-                  onClick={addMemory}
-                  className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black active:bg-zinc-200"
-                >
-                  添加
-                </button>
-              </div>
+            <div className="space-y-2 px-4 py-3">
+              <input
+                value={newMemory}
+                onChange={(event) => setNewMemory(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    addMemory();
+                  }
+                }}
+                placeholder="添加一条记忆…"
+                className="w-full rounded-2xl bg-[#f0f5ef] px-4 py-3 text-[15px] outline-none placeholder:text-[#9aa69b]"
+              />
+
+              <button
+                onClick={addMemory}
+                className="w-full rounded-2xl bg-[#466a55] px-4 py-3 text-[15px] font-medium text-white active:bg-[#395845]"
+              >
+                添加记忆
+              </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-3">
+            <div className="flex-1 overflow-y-auto px-4 pb-8">
               {memories.length === 0 ? (
-                <p className="mt-6 text-center text-sm text-zinc-500">
-                  暂时没有记忆。
+                <p className="mt-8 text-center text-sm text-[#8a968b]">
+                  还没有记忆。
                 </p>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-2.5">
                   {memories.map((memory, index) => (
-                    <div
-                      key={`${memory}-${index}`}
-                      className="rounded-xl bg-zinc-900 p-3"
-                    >
-                      <p className="whitespace-pre-wrap text-sm leading-relaxed">
+                    <div key={`${memory}-${index}`} className="rounded-2xl bg-[#f0f5ef] p-4">
+                      <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-[#405145]">
                         {memory}
                       </p>
+
                       <button
                         onClick={() => deleteMemory(index)}
-                        className="mt-2 text-xs text-zinc-500 active:text-red-400"
+                        className="mt-2 text-xs text-[#8a968b] active:text-red-500"
                       >
                         删除
                       </button>

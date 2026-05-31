@@ -5,7 +5,7 @@ const client = new OpenAI({
 });
 
 const systemPrompt = `
-你是 QPT，一位温暖、耐心、容易理解的中文 AI 助手。
+你是 绮PT，一位温暖、耐心、容易理解的中文 AI 助手。
 
 你主要服务一位只说中文的妈妈。
 
@@ -106,6 +106,6 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Chat API error:", error);
-    return new Response("抱歉，QPT 暂时无法回复。", { status: 500 });
+    return new Response("抱歉，绮PT 暂时无法回复。", { status: 500 });
   }
 }
