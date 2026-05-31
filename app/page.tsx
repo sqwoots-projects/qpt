@@ -21,7 +21,7 @@ type Conversation = {
 const STORAGE_KEY = "qpt_conversations";
 const ACTIVE_CONVERSATION_KEY = "qpt_active_conversation_id";
 const MEMORY_KEY = "qpt_memories";
-const APP_VERSION = "v0.2.0";
+const APP_VERSION = "v0.3.0";
 
 const welcomeMessage: Message = {
   role: "assistant",
@@ -175,7 +175,10 @@ export default function Home() {
   const [newMemory, setNewMemory] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   const activeConversation = useMemo(() => {
     return conversations.find(
@@ -184,7 +187,6 @@ export default function Home() {
   }, [activeConversationId, conversations]);
 
   const messages = activeConversation?.messages ?? [welcomeMessage];
-
   const latestMessageContent = messages[messages.length - 1]?.content ?? "";
 
   const filteredConversations = useMemo(() => {
@@ -352,6 +354,55 @@ export default function Home() {
     }
   }
 
+  function startVoiceInput() {
+    if (isLoading) return;
+
+    const SpeechRecognition =
+      (window as any).SpeechRecognition ||
+      (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      alert("这个浏览器暂时不支持语音输入。可以使用键盘上的麦克风按钮输入。");
+      return;
+    }
+
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "zh-CN";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      let transcript = "";
+
+      for (let index = event.resultIndex; index < event.results.length; index += 1) {
+        transcript += event.results[index][0].transcript;
+      }
+
+      setInput(transcript);
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }
+
   async function autoSaveMemories(finalMessages: Message[]) {
     try {
       const response = await fetch("/api/memory", {
@@ -482,8 +533,12 @@ export default function Home() {
       <section ref={scrollRef} className="flex-1 overflow-y-auto px-3 py-3">
         {messages.length <= 1 ? (
           <div className="flex min-h-full flex-col items-center justify-center px-5 pb-10 text-center">
-            <div className="flex h-24 w-24 items-center justify-center rounded-[28px] bg-white text-[28px] font-black text-[#466a55] shadow-[0_16px_40px_-24px_rgba(70,106,85,0.65)] ring-1 ring-[#e4ebe2]">
-              绮PT
+            <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-[28px] bg-white shadow-[0_16px_40px_-24px_rgba(70,106,85,0.65)] ring-1 ring-[#e4ebe2]">
+              <img
+                src="/icon-512.png"
+                alt="绮PT"
+                className="h-full w-full object-contain"
+              />
             </div>
 
             <h1 className="mt-7 text-[28px] font-bold tracking-tight text-[#223127]">
@@ -521,8 +576,8 @@ export default function Home() {
                 <div
                   className={
                     message.role === "user"
-                      ? "max-w-[82%] whitespace-pre-wrap break-words rounded-[26px] bg-[#466a55] px-4 py-2.5 text-[16px] leading-[1.55] text-white shadow-[0_8px_20px_-12px_rgba(70,106,85,0.7)]"
-                      : "w-[92%] rounded-[26px] border border-[#e1eadf] bg-white px-4 py-3 shadow-[0_10px_28px_-24px_rgba(70,106,85,0.5)]"
+                      ? "max-w-[75%] whitespace-pre-wrap break-words rounded-[26px] bg-[#466a55] px-4 py-2.5 text-[16px] leading-[1.55] text-white shadow-[0_8px_20px_-12px_rgba(70,106,85,0.7)]"
+                      : "max-w-[85%] rounded-[26px] border border-[#e1eadf] bg-white px-5 py-4 shadow-[0_10px_28px_-24px_rgba(70,106,85,0.5)]"
                   }
                   style={
                     message.role === "user"
@@ -604,6 +659,19 @@ export default function Home() {
                 }
               }}
             />
+
+            <button
+              onClick={startVoiceInput}
+              disabled={isLoading}
+              className={
+                isListening
+                  ? "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#466a55] text-xl text-white shadow-[0_8px_18px_-10px_rgba(70,106,85,0.9)]"
+                  : "flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#e9f1e7] text-xl text-[#466a55] active:scale-95 disabled:opacity-50"
+              }
+              aria-label="语音输入"
+            >
+              {isListening ? "●" : "🎙️"}
+            </button>
 
             <button
               onClick={sendMessage}
