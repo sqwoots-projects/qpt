@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "绮PT",
   },
   icons: {
@@ -52,7 +52,9 @@ export default function RootLayout({
       lang="zh-CN"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[#fbfaf3]">{children}</body>
+      <body className="min-h-screen flex flex-col bg-[#fbfaf3] text-[#223127]">
+        {children}
+      </body>
     </html>
   );
 }
