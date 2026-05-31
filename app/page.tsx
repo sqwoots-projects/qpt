@@ -449,7 +449,8 @@ export default function Home() {
   }
 
   return (
-    <main className="fixed inset-0 flex flex-col overflow-hidden bg-[#fbfaf3] text-[#223127]">      <header className="z-20 shrink-0 bg-[#fbfaf3]/85 px-2 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
+    <main className="fixed inset-0 flex flex-col overflow-hidden bg-[#fbfaf3] text-[#223127]">
+      <header className="z-20 shrink-0 bg-[#fbfaf3]/85 px-2 pt-[env(safe-area-inset-top)] backdrop-blur-xl">
         <div className="relative flex h-14 items-center">
           <button
             onClick={() => setShowHistory(true)}
