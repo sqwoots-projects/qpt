@@ -562,7 +562,7 @@ export default function Home() {
         )}
       </section>
 
-      <footer className="pointer-events-none shrink-0 bg-gradient-to-t from-[#fbfaf3] via-[#fbfaf3]/95 to-transparent px-3 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] pt-2">
+      <footer className="pointer-events-none shrink-0 bg-[#fbfaf3] px-3 pb-[env(safe-area-inset-bottom)] pt-1">
         <div className="pointer-events-auto mx-auto max-w-xl rounded-[28px] border border-[#dfe8dd] bg-white px-2 py-1.5 shadow-[0_12px_36px_-22px_rgba(70,106,85,0.6)]">
           {selectedImageUrl ? (
             <div className="mb-2 flex items-center gap-2 rounded-3xl bg-[#f1f6f0] p-2">
